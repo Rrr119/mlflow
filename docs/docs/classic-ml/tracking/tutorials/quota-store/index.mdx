@@ -1,0 +1,112 @@
+# Per-Experiment Quotas and Asynchronous Writes (Quota Store Plugin)
+
+When multiple teams share a single MLflow Tracking server, the backend store does
+not natively limit how many runs one team or experiment can create. A runaway
+training loop can fill the metadata database and affect every other team.
+
+MLflow ships a built-in **quota tracking store plugin** (URI scheme `quota:`)
+that wraps any existing tracking backend and adds:
+
+- **Per-experiment active-run quotas**, enforced when a run is created or
+  restored.
+- **Optional asynchronous writes** for fire-and-forget logging (metrics,
+  params, tags) through a bounded background queue.
+- **Full API compatibility**: the plugin implements the same
+  `AbstractStore` interface and delegates every other operation to the
+  underlying store, so existing MLflow clients and servers keep working
+  unchanged.
+
+## Enabling the Plugin
+
+Prefix your backend store URI with `quota:`. The suffix is a normal, fully
+qualified tracking URI that selects the delegated backend:
+
+```bash
+# SQLite backend
+mlflow server \
+  --backend-store-uri quota:sqlite:////path/to/mlflow.db \
+  --default-artifact-root /path/to/artifacts
+
+# Any other supported backend works as well
+mlflow server --backend-store-uri quota:postgresql://user:password@host/mlflow
+```
+
+Clients can also point directly at the wrapped URI:
+
+```python
+import mlflow
+
+mlflow.set_tracking_uri("quota:sqlite:////path/to/mlflow.db")
+```
+
+## Configuring Quotas
+
+### Global Default
+
+Set a default active-run limit that applies to every experiment without an
+explicit override. A value of `0` (the default) means unlimited.
+
+```bash
+export MLFLOW_QUOTA_MAX_RUNS_PER_EXPERIMENT=100
+```
+
+### Per-Experiment Override
+
+Tag an experiment with `mlflow.quota.maxRuns` to give it a specific limit. The
+tag takes precedence over the global default:
+
+```python
+from mlflow import MlflowClient
+
+client = MlflowClient()
+experiment_id = client.create_experiment(
+    "team-alpha", tags={"mlflow.quota.maxRuns": "25"}
+)
+```
+
+Set the tag to `0` to exempt a single experiment from the global limit. The tag
+key can be customized with the `MLFLOW_QUOTA_TAG` environment variable.
+
+Once an experiment reaches its limit, `create_run` raises an
+`MlflowException` with error code `QUOTA_EXCEEDED`. Deleting or terminating a
+run frees capacity, because only **active** runs count toward the quota.
+
+## Asynchronous Writes
+
+Enable background dispatch for write-only logging calls:
+
+```bash
+export MLFLOW_QUOTA_ASYNC_WRITES=true
+```
+
+With this flag, calls such as `log_metric`, `log_param`, `set_tag`, and
+`log_batch` are handed to a single worker thread through a bounded queue and
+return immediately. Reads, experiment management, and run lifecycle operations
+(including `create_run`, which must return a run ID) stay synchronous, so the
+MLflow API contract and return values are unchanged.
+
+The queue applies backpressure when full; its capacity is controlled with:
+
+```bash
+export MLFLOW_QUOTA_ASYNC_QUEUE_MAXSIZE=10000
+```
+
+Flush all queued writes before reading data back or terminating a run:
+
+```python
+import mlflow
+
+mlflow.flush_async_logging()
+```
+
+Background failures are logged and re-raised on the next `flush()` call, so
+write errors are never silently dropped.
+
+## Environment Variables
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MLFLOW_QUOTA_MAX_RUNS_PER_EXPERIMENT` | `0` | Global active-run limit per experiment; `0` disables it. |
+| `MLFLOW_QUOTA_TAG` | `mlflow.quota.maxRuns` | Experiment tag carrying a per-experiment quota override. |
+| `MLFLOW_QUOTA_ASYNC_WRITES` | `false` | Dispatch write-only logging calls to a background worker. |
+| `MLFLOW_QUOTA_ASYNC_QUEUE_MAXSIZE` | `10000` | Max buffered background writes before producers block; `0` means unbounded. |

@@ -145,6 +145,9 @@ http = "mlflow.deployments.mlflow"
 https = "mlflow.deployments.mlflow"
 openai = "mlflow.deployments.openai"
 
+[project.entry-points."mlflow.tracking_store"]
+quota = "mlflow.tracking._tracking_service.utils:_get_quota_store"
+
 [tool.setuptools.package-data]
 mlflow = [
   "store/db_migrations/alembic.ini",

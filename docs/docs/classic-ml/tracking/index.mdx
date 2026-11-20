@@ -450,3 +450,11 @@ See [Backend Stores](/self-hosting/architecture/backend-store) and [Common Setup
 A system tag `mlflow.note.content` can be used to add descriptive note about this run. While the other [system tags](/ml/tracking/tracking-api#system-tags-reference) are set automatically,
 this tag is **not set by default** and users can override it to include additional information about the run. The content will be displayed on the run's page under
 the Notes section.
+
+#### How can I cap runs per experiment when multiple teams share a Tracking Server?
+
+Use the built-in `quota:` tracking store plugin. It wraps any backend store, enforces a
+configurable active-run quota per experiment (globally or via an experiment tag), and can
+dispatch write-only logging calls asynchronously while keeping the full MLflow API
+compatible. See [Per-Experiment Quotas and Asynchronous Writes](/ml/tracking/tutorials/quota-store)
+for the setup and environment variables.

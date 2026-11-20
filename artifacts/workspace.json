@@ -1,0 +1,17 @@
+{
+  "root": "/home/dev/feedback/uid26927",
+  "B": "/home/dev/feedback/uid26927",
+  "sha": "c1c142cff257f59290ef4178dee0906cfb9fc40d",
+  "wslDistro": "Ubuntu-26.04",
+  "source": {
+    "owner": "mlflow",
+    "repo": "mlflow",
+    "sha": "c1c142cff257f59290ef4178dee0906cfb9fc40d"
+  },
+  "fork": {
+    "owner": "Rrr119",
+    "repo": "mlflow",
+    "cloneUrl": "https://github.com/Rrr119/mlflow.git"
+  },
+  "at": "2026-11-20T00:01:14.273Z"
+}

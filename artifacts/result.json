@@ -1,0 +1,18 @@
+{
+  "uid": "26927",
+  "harness": "Codex CLI",
+  "snapshotUrl": "https://github.com/Rrr119/mlflow/commit/c1c142cff257f59290ef4178dee0906cfb9fc40d",
+  "harnessVersion": "codex-cli 0.167.2",
+  "operatingSystem": "Ubuntu 26.04.1 LTS",
+  "operatingSystemCell": [
+    "MacOS/Linux"
+  ],
+  "outputDirectory": "/home/dev/feedback/uid26927",
+  "wslDistro": "Ubuntu-26.04",
+  "B": {
+    "success": false,
+    "canceled": true,
+    "error": "任务已取消",
+    "side": "B"
+  }
+}

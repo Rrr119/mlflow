@@ -205,6 +205,12 @@ def _get_databricks_rest_store(store_uri, **_):
     return DatabricksTracingRestStore(partial(get_databricks_host_creds, store_uri))
 
 
+def _get_quota_store(store_uri, artifact_uri):
+    from mlflow.store.tracking.quota.quota_store import QuotaTrackingStore
+
+    return QuotaTrackingStore(store_uri, artifact_uri)
+
+
 def _get_databricks_uc_rest_store(store_uri, **_):
     from mlflow.exceptions import MlflowException
     from mlflow.version import VERSION
@@ -247,6 +253,8 @@ def _register_tracking_stores():
 
     for scheme in ["http", "https"]:
         _tracking_store_registry.register(scheme, _get_rest_store)
+
+    _tracking_store_registry.register("quota", _get_quota_store)
 
     if importlib.util.find_spec("sqlalchemy"):
         for scheme in DATABASE_ENGINES:

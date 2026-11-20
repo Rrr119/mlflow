@@ -2072,3 +2072,28 @@ MLFLOW_READ_REPLICA_BACKEND_STORE_URI = _EnvironmentVariable(
 MLFLOW_SKILL_CONTENT_MAX_DECOMPRESSED_SIZE = _EnvironmentVariable(
     "MLFLOW_SKILL_CONTENT_MAX_DECOMPRESSED_SIZE", int, 25 * 1024**2
 )
+
+#: Default maximum number of active runs per experiment enforced by the
+#: ``quota:`` tracking store plugin. A value of ``0`` disables the global quota
+#: (per-experiment tags can still impose limits).
+#: (default: ``0``)
+MLFLOW_QUOTA_MAX_RUNS_PER_EXPERIMENT = _EnvironmentVariable(
+    "MLFLOW_QUOTA_MAX_RUNS_PER_EXPERIMENT", int, 0
+)
+
+#: Experiment tag holding a per-experiment override of the active-run quota.
+#: (default: ``mlflow.quota.maxRuns``)
+MLFLOW_QUOTA_TAG = _EnvironmentVariable("MLFLOW_QUOTA_TAG", str, "mlflow.quota.maxRuns")
+
+#: When ``True``, the ``quota:`` tracking store dispatches fire-and-forget
+#: writes (metrics, params, tags, ...) to a background worker thread. Reads and
+#: run lifecycle operations remain synchronous.
+#: (default: ``False``)
+MLFLOW_QUOTA_ASYNC_WRITES = _BooleanEnvironmentVariable("MLFLOW_QUOTA_ASYNC_WRITES", False)
+
+#: Maximum number of pending writes buffered by the quota store's asynchronous
+#: write queue before producers block. A value of ``0`` means an unbounded queue.
+#: (default: ``10000``)
+MLFLOW_QUOTA_ASYNC_QUEUE_MAXSIZE = _EnvironmentVariable(
+    "MLFLOW_QUOTA_ASYNC_QUEUE_MAXSIZE", int, 10000
+)

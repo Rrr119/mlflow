@@ -73,6 +73,7 @@ from mlflow.store.tracking.gateway.config_resolver import (
     get_endpoint_config,
     get_resource_endpoint_configs,
 )
+from mlflow.store.tracking.quota import QuotaExceededException, QuotaTrackingStore
 from mlflow.store.tracking.sqlalchemy_store import SqlAlchemyStore
 from mlflow.store.tracking.sqlalchemy_workspace_store import WorkspaceAwareSqlAlchemyStore
 from mlflow.store.workspace.abstract_store import ResolvedTraceArchivalConfig
@@ -3603,3 +3604,43 @@ def test_search_mcp_access_endpoints_is_workspace_scoped(store):
 
     assert [e.id for e in endpoints] == [endpoint.id]
     assert [e.url for e in endpoints] == ["https://team-b.example.com"]
+
+
+@pytest.fixture
+def quota_workspace_store(tmp_path, db_uri, monkeypatch):
+    monkeypatch.setenv(MLFLOW_ENABLE_WORKSPACES.name, "true")
+    monkeypatch.setenv("MLFLOW_QUOTA_MAX_RUNS_PER_EXPERIMENT", "1")
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir()
+    store = QuotaTrackingStore(f"quota:{db_uri}", artifact_dir.as_uri())
+    try:
+        yield store
+    finally:
+        store.close()
+
+
+def test_quota_store_wraps_workspace_aware_backend(quota_workspace_store):
+    assert isinstance(quota_workspace_store, QuotaTrackingStore)
+    assert isinstance(quota_workspace_store.backend_store, WorkspaceAwareSqlAlchemyStore)
+    assert quota_workspace_store.supports_workspaces is True
+
+
+def test_quota_enforced_inside_workspace(quota_workspace_store):
+    with WorkspaceContext("team-a"):
+        experiment_id = quota_workspace_store.create_experiment("team-a-exp", None, [])
+        quota_workspace_store.create_run(experiment_id, "user", _now_ms(), [], "run-1")
+        with pytest.raises(QuotaExceededException, match="quota of 1"):
+            quota_workspace_store.create_run(experiment_id, "user", _now_ms(), [], "run-2")
+
+
+def test_quota_is_isolated_per_workspace(quota_workspace_store):
+    with WorkspaceContext("team-a"):
+        experiment_a = quota_workspace_store.create_experiment("shared-name", None, [])
+        quota_workspace_store.create_run(experiment_a, "user", _now_ms(), [], "a-run")
+
+    with WorkspaceContext("team-b"):
+        experiment_b = quota_workspace_store.create_experiment("shared-name", None, [])
+        # team-b has its own workspace-scoped run set, so its quota is untouched.
+        quota_workspace_store.create_run(experiment_b, "user", _now_ms(), [], "b-run")
+        with pytest.raises(QuotaExceededException, match="reached its quota"):
+            quota_workspace_store.create_run(experiment_b, "user", _now_ms(), [], "b-run-2")
